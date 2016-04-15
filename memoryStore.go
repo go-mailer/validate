@@ -8,19 +8,13 @@ import (
 	"time"
 )
 
-const (
-	// DefaultMemoryGCInterval 默认内存存储GC间隔
-	DefaultMemoryGCInterval = time.Second * 60
-)
-
 // NewMemoryStore 创建基于内存存储的存储实例
 func NewMemoryStore(gcInterval time.Duration) Store {
 	if gcInterval == 0 {
-		gcInterval = DefaultMemoryGCInterval
+		gcInterval = DefaultGCInterval
 	}
 	memStore := &MemoryStore{
-		idList:     list.New(),
-		data:       make(map[int64]*StoreItem),
+		data:       list.New(),
 		gcInterval: gcInterval,
 	}
 	go memStore.gc()
@@ -31,29 +25,25 @@ func NewMemoryStore(gcInterval time.Duration) Store {
 type MemoryStore struct {
 	sync.RWMutex
 	globalID   int64
-	idList     *list.List
-	data       map[int64]*StoreItem
 	gcInterval time.Duration
+	data       *list.List
 }
 
-// gc 执行过期元素检测
 func (this *MemoryStore) gc() {
 	time.AfterFunc(this.gcInterval, func() {
 		defer this.gc()
 		for {
 			this.RLock()
-			ele := this.idList.Front()
+			ele := this.data.Front()
 			if ele == nil {
 				this.RUnlock()
 				break
 			}
-			id := ele.Value.(int64)
-			item := this.data[id]
+			item := ele.Value.(DataItem)
 			this.RUnlock()
-			if (item.Time.UnixNano() + int64(item.Expire/time.Nanosecond)) < time.Now().UnixNano() {
+			if (item.CreateTime.UnixNano() + int64(item.Expire/time.Nanosecond)) < time.Now().UnixNano() {
 				this.Lock()
-				this.idList.Remove(ele)
-				delete(this.data, id)
+				this.data.Remove(ele)
 				this.Unlock()
 				continue
 			}
@@ -63,21 +53,22 @@ func (this *MemoryStore) gc() {
 }
 
 // Put Put item
-func (this *MemoryStore) Put(item *StoreItem) (int64, error) {
+func (this *MemoryStore) Put(item DataItem) (int64, error) {
 	this.Lock()
 	defer this.Unlock()
 	atomic.AddInt64(&this.globalID, 1)
-	this.idList.PushBack(this.globalID)
-	this.data[this.globalID] = item
-	return this.globalID, nil
+	item.ID = this.globalID
+	this.data.PushBack(item)
+	return item.ID, nil
 }
 
 // Take Take item by ID
-func (this *MemoryStore) Take(id int64) (*StoreItem, error) {
+func (this *MemoryStore) TakeByID(id int64) (*DataItem, error) {
 	this.RLock()
 	var takeEle *list.Element
-	for ele := this.idList.Back(); ele != nil; ele = ele.Prev() {
-		if ele.Value.(int64) == id {
+	for ele := this.data.Back(); ele != nil; ele = ele.Prev() {
+		item := ele.Value.(DataItem)
+		if item.ID == id {
 			takeEle = ele
 			break
 		}
@@ -86,11 +77,33 @@ func (this *MemoryStore) Take(id int64) (*StoreItem, error) {
 		this.RUnlock()
 		return nil, errors.New("Item not found")
 	}
-	item := this.data[id]
+	item := takeEle.Value.(DataItem)
 	this.RUnlock()
 	this.Lock()
-	delete(this.data, id)
-	this.idList.Remove(takeEle)
+	this.data.Remove(takeEle)
 	this.Unlock()
-	return item, nil
+	return &item, nil
+}
+
+// Take Take item by email and code
+func (this *MemoryStore) TakeByEmailAndCode(email, code string) (*DataItem, error) {
+	this.RLock()
+	var takeEle *list.Element
+	for ele := this.data.Back(); ele != nil; ele = ele.Prev() {
+		item := ele.Value.(DataItem)
+		if item.Email == email && item.Code == code {
+			takeEle = ele
+			break
+		}
+	}
+	if takeEle == nil {
+		this.RUnlock()
+		return nil, errors.New("Item not found")
+	}
+	item := takeEle.Value.(DataItem)
+	this.RUnlock()
+	this.Lock()
+	this.data.Remove(takeEle)
+	this.Unlock()
+	return &item, nil
 }

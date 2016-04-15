@@ -26,15 +26,15 @@ func main() {
 	// 创建验证信息存储，每10分钟执行一次GC
 	store := validate.NewMemoryStore(time.Second * 60 * 10)
 	// 创建验证信息管理器，验证信息的过期时间为1小时
-	manager := validate.NewManager(store, validate.Config{Expire: time.Second * 60 * 60})
+	tokenV := validate.NewTokenValidate(store, validate.Config{Expire: time.Second * 60 * 60})
 	// 使用邮箱生成验证令牌
-	token, err := manager.GenerateToken("xxx@gmail.com")
+	token, err := tokenV.Generate("xxx@gmail.com")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Token:", token)
 	// 验证令牌
-	isValid, email, err := manager.Validate(token)
+	isValid, email, err := tokenV.Validate(token)
 	if err != nil {
 		panic(err)
 	}

@@ -1,18 +1,16 @@
 package validate
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestManagerValidate(t *testing.T) {
+func TestTokenValidate(t *testing.T) {
 	email := "xxx@gmail.com"
-	manager := NewManager(NewMemoryStore(0))
-	token, err := manager.GenerateToken(email)
+	tokenV := NewTokenValidate(NewMemoryStore(0))
+	token, err := tokenV.Generate(email)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	isValid, vmail, err := manager.Validate(token)
+	isValid, vmail, err := tokenV.Validate(token)
 	if err != nil {
 		t.Error(err)
 		return
