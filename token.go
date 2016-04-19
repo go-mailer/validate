@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/LyricTian/lib.v1"
+	"gopkg.in/LyricTian/lib.v2"
 )
 
 // NewTokenValidate 创建TokenValidate的实例

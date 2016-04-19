@@ -3,7 +3,7 @@ package validate
 import (
 	"time"
 
-	"gopkg.in/LyricTian/lib.v1"
+	"gopkg.in/LyricTian/lib.v2"
 )
 
 // NewCodeValidate 创建CodeValidate的实例
