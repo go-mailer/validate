@@ -83,7 +83,11 @@ func (this *TokenValidate) Generate(email string) (string, error) {
 
 // parseToken 解析token
 func (this *TokenValidate) parseToken(token string) (id int64, encryptVal string, err error) {
-	token = token + strings.Repeat("=", 4-len(token)%4)
+	codeLen := len(token) % 4
+	if codeLen > 0 {
+		codeLen = 4 - codeLen
+	}
+	token = token + strings.Repeat("=", codeLen)
 	v, err := base64.URLEncoding.DecodeString(token)
 	if err != nil {
 		return
